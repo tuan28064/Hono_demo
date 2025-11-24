@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hono API 客户端调用示例</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .result {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Hono API 客户端调用示例</h1>
+    <p>确保服务器运行在 <code>http://localhost:3000</code></p>
+
+    <!-- 获取所有用户 -->
+    <div class="container">
+        <h2>1. 获取所有用户 (GET /users)</h2>
+        <button onclick="getAllUsers()">获取所有用户</button>
+        <div id="getAllUsersResult" class="result" style="display:none;"></div>
+
+        <h3>代码示例：</h3>
+        <pre><code>async function getAllUsers() {
+  const response = await fetch('http://localhost:3000/users');
+  const data = await response.json();
+  console.log(data);
+}</code></pre>
+    </div>
+
+    <!-- 获取单个用户 -->
+    <div class="container">
+        <h2>2. 获取单个用户 (GET /users/:id)</h2>
+        <input type="number" id="getUserId" placeholder="输入用户 ID" value="1">
+        <button onclick="getUser()">获取用户</button>
+        <div id="getUserResult" class="result" style="display:none;"></div>
+
+        <h3>代码示例：</h3>
+        <pre><code>async function getUser(id) {
+  const response = await fetch(`http://localhost:3000/users/${id}`);
+  const data = await response.json();
+  console.log(data);
+}</code></pre>
+    </div>
+
+    <!-- 创建用户 -->
+    <div class="container">
+        <h2>3. 创建用户 (POST /users)</h2>
+        <input type="text" id="createUserName" placeholder="用户名" value="测试用户">
+        <input type="email" id="createUserEmail" placeholder="邮箱" value="test@example.com">
+        <button onclick="createUser()">创建用户</button>
+        <div id="createUserResult" class="result" style="display:none;"></div>
+
+        <h3>代码示例：</h3>
+        <pre><code>async function createUser(name, email) {
+  const response = await fetch('http://localhost:3000/users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name, email }),
+  });
+  const data = await response.json();
+  console.log(data);
+}</code></pre>
+    </div>
+
+    <!-- 更新用户 -->
+    <div class="container">
+        <h2>4. 更新用户 (PUT /users/:id)</h2>
+        <input type="number" id="updateUserId" placeholder="用户 ID" value="1">
+        <input type="text" id="updateUserName" placeholder="新用户名" value="更新后的名字">
+        <input type="email" id="updateUserEmail" placeholder="新邮箱" value="">
+        <button onclick="updateUser()">更新用户</button>
+        <div id="updateUserResult" class="result" style="display:none;"></div>
+
+        <h3>代码示例：</h3>
+        <pre><code>async function updateUser(id, name, email) {
+  const body = {};
+  if (name) body.name = name;
+  if (email) body.email = email;
+
+  const response = await fetch(`http://localhost:3000/users/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json();
+  console.log(data);
+}</code></pre>
+    </div>
+
+    <!-- 删除用户 -->
+    <div class="container">
+        <h2>5. 删除用户 (DELETE /users/:id)</h2>
+        <input type="number" id="deleteUserId" placeholder="用户 ID" value="3">
+        <button onclick="deleteUser()">删除用户</button>
+        <div id="deleteUserResult" class="result" style="display:none;"></div>
+
+        <h3>代码示例：</h3>
+        <pre><code>async function deleteUser(id) {
+  const response = await fetch(`http://localhost:3000/users/${id}`, {
+    method: 'DELETE',
+  });
+  const data = await response.json();
+  console.log(data);
+}</code></pre>
+    </div>
+
+    <!-- 搜索用户 -->
+    <div class="container">
+        <h2>6. 搜索用户 (GET /search?q=关键词)</h2>
+        <input type="text" id="searchQuery" placeholder="搜索关键词" value="张">
+        <button onclick="searchUsers()">搜索</button>
+        <div id="searchUsersResult" class="result" style="display:none;"></div>
+
+        <h3>代码示例：</h3>
+        <pre><code>async function searchUsers(query) {
+  const params = new URLSearchParams({ q: query, limit: 10 });
+  const response = await fetch(`http://localhost:3000/search?${params}`);
+  const data = await response.json();
+  console.log(data);
+}</code></pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000';
+
+        // 显示结果的辅助函数
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = isError ? 'result error' : 'result';
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // 1. 获取所有用户
+        async function getAllUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/users`);
+                const data = await response.json();
+                showResult('getAllUsersResult', data);
+            } catch (error) {
+                showResult('getAllUsersResult', { error: error.message }, true);
+            }
+        }
+
+        // 2. 获取单个用户
+        async function getUser() {
+            const id = document.getElementById('getUserId').value;
+            try {
+                const response = await fetch(`${API_BASE}/users/${id}`);
+                const data = await response.json();
+                showResult('getUserResult', data, !response.ok);
+            } catch (error) {
+                showResult('getUserResult', { error: error.message }, true);
+            }
+        }
+
+        // 3. 创建用户
+        async function createUser() {
+            const name = document.getElementById('createUserName').value;
+            const email = document.getElementById('createUserEmail').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email }),
+                });
+                const data = await response.json();
+                showResult('createUserResult', data, !response.ok);
+            } catch (error) {
+                showResult('createUserResult', { error: error.message }, true);
+            }
+        }
+
+        // 4. 更新用户
+        async function updateUser() {
+            const id = document.getElementById('updateUserId').value;
+            const name = document.getElementById('updateUserName').value;
+            const email = document.getElementById('updateUserEmail').value;
+
+            const body = {};
+            if (name) body.name = name;
+            if (email) body.email = email;
+
+            try {
+                const response = await fetch(`${API_BASE}/users/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body),
+                });
+                const data = await response.json();
+                showResult('updateUserResult', data, !response.ok);
+            } catch (error) {
+                showResult('updateUserResult', { error: error.message }, true);
+            }
+        }
+
+        // 5. 删除用户
+        async function deleteUser() {
+            const id = document.getElementById('deleteUserId').value;
+
+            if (!confirm(`确定要删除用户 ${id} 吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/users/${id}`, {
+                    method: 'DELETE',
+                });
+                const data = await response.json();
+                showResult('deleteUserResult', data, !response.ok);
+            } catch (error) {
+                showResult('deleteUserResult', { error: error.message }, true);
+            }
+        }
+
+        // 6. 搜索用户
+        async function searchUsers() {
+            const query = document.getElementById('searchQuery').value;
+
+            try {
+                const params = new URLSearchParams({ q: query, limit: 10 });
+                const response = await fetch(`${API_BASE}/search?${params}`);
+                const data = await response.json();
+                showResult('searchUsersResult', data);
+            } catch (error) {
+                showResult('searchUsersResult', { error: error.message }, true);
+            }
+        }
+    </script>
+</body>
+</html>
