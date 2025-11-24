@@ -3,28 +3,30 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 
-const app = new Hono();
+// 定义环境变量类型
+type Bindings = {
+  DB: D1Database;
+  ASSETS: any;
+};
+
+const app = new Hono<{ Bindings: Bindings }>();
 
 // 中间件示例
 app.use('*', logger()); // 日志中间件
 app.use('/api/*', prettyJSON()); // 美化 JSON 输出（仅 API 路由）
 app.use('*', cors()); // CORS 跨域支持
 
-// 模拟数据库
+// 用户接口
 interface User {
   id: number;
   name: string;
   email: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
-let users: User[] = [
-  { id: 1, name: '张三', email: 'zhangsan@example.com' },
-  { id: 2, name: '李四', email: 'lisi@example.com' },
-  { id: 3, name: '王五', email: 'wangwu@example.com' },
-];
-
 // API 路由组
-const api = new Hono();
+const api = new Hono<{ Bindings: Bindings }>();
 
 // API 首页 - GET /api
 api.get('/', (c) => {
@@ -41,33 +43,63 @@ api.get('/', (c) => {
 });
 
 // 获取所有用户 - GET /api/users
-api.get('/users', (c) => {
-  return c.json({
-    success: true,
-    data: users,
-    total: users.length,
-  });
-});
+api.get('/users', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(
+      'SELECT id, name, email, created_at, updated_at FROM users ORDER BY id'
+    ).all();
 
-// 获取单个用户 - GET /api/users/:id
-api.get('/users/:id', (c) => {
-  const id = parseInt(c.req.param('id'));
-  const user = users.find((u) => u.id === id);
-
-  if (!user) {
+    return c.json({
+      success: true,
+      data: results,
+      total: results.length,
+    });
+  } catch (error) {
+    console.error('Database error:', error);
     return c.json(
       {
         success: false,
-        message: '用户不存在',
+        message: '获取用户列表失败',
       },
-      404
+      500
     );
   }
+});
 
-  return c.json({
-    success: true,
-    data: user,
-  });
+// 获取单个用户 - GET /api/users/:id
+api.get('/users/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
+    const user = await c.env.DB.prepare(
+      'SELECT id, name, email, created_at, updated_at FROM users WHERE id = ?'
+    )
+      .bind(id)
+      .first();
+
+    if (!user) {
+      return c.json(
+        {
+          success: false,
+          message: '用户不存在',
+        },
+        404
+      );
+    }
+
+    return c.json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    return c.json(
+      {
+        success: false,
+        message: '获取用户失败',
+      },
+      500
+    );
+  }
 });
 
 // 创建用户 - POST /api/users
@@ -85,93 +117,157 @@ api.post('/users', async (c) => {
       );
     }
 
-    const newUser: User = {
-      id: users.length > 0 ? Math.max(...users.map((u) => u.id)) + 1 : 1,
-      name: body.name,
-      email: body.email,
-    };
+    // 检查邮箱是否已存在
+    const existingUser = await c.env.DB.prepare(
+      'SELECT id FROM users WHERE email = ?'
+    )
+      .bind(body.email)
+      .first();
 
-    users.push(newUser);
+    if (existingUser) {
+      return c.json(
+        {
+          success: false,
+          message: '该邮箱已被使用',
+        },
+        400
+      );
+    }
+
+    // 插入新用户
+    const result = await c.env.DB.prepare(
+      'INSERT INTO users (name, email) VALUES (?, ?) RETURNING id, name, email, created_at, updated_at'
+    )
+      .bind(body.name, body.email)
+      .first();
 
     return c.json(
       {
         success: true,
         message: '用户创建成功',
-        data: newUser,
+        data: result,
       },
       201
     );
   } catch (error) {
+    console.error('Database error:', error);
     return c.json(
       {
         success: false,
-        message: '请求数据格式错误',
+        message: '创建用户失败',
       },
-      400
+      500
     );
   }
 });
 
 // 更新用户 - PUT /api/users/:id
 api.put('/users/:id', async (c) => {
-  const id = parseInt(c.req.param('id'));
-  const userIndex = users.findIndex((u) => u.id === id);
-
-  if (userIndex === -1) {
-    return c.json(
-      {
-        success: false,
-        message: '用户不存在',
-      },
-      404
-    );
-  }
-
   try {
+    const id = parseInt(c.req.param('id'));
     const body = await c.req.json<Partial<User>>();
-    users[userIndex] = {
-      ...users[userIndex],
-      ...(body.name && { name: body.name }),
-      ...(body.email && { email: body.email }),
-    };
+
+    // 检查用户是否存在
+    const user = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?')
+      .bind(id)
+      .first();
+
+    if (!user) {
+      return c.json(
+        {
+          success: false,
+          message: '用户不存在',
+        },
+        404
+      );
+    }
+
+    // 构建更新语句
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (body.name) {
+      updates.push('name = ?');
+      values.push(body.name);
+    }
+    if (body.email) {
+      updates.push('email = ?');
+      values.push(body.email);
+    }
+
+    if (updates.length === 0) {
+      return c.json(
+        {
+          success: false,
+          message: '没有提供要更新的字段',
+        },
+        400
+      );
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(id);
+
+    const result = await c.env.DB.prepare(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = ? RETURNING id, name, email, created_at, updated_at`
+    )
+      .bind(...values)
+      .first();
 
     return c.json({
       success: true,
       message: '用户更新成功',
-      data: users[userIndex],
+      data: result,
     });
   } catch (error) {
+    console.error('Database error:', error);
     return c.json(
       {
         success: false,
-        message: '请求数据格式错误',
+        message: '更新用户失败',
       },
-      400
+      500
     );
   }
 });
 
 // 删除用户 - DELETE /api/users/:id
-api.delete('/users/:id', (c) => {
-  const id = parseInt(c.req.param('id'));
-  const userIndex = users.findIndex((u) => u.id === id);
+api.delete('/users/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'));
 
-  if (userIndex === -1) {
+    // 检查用户是否存在
+    const user = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?')
+      .bind(id)
+      .first();
+
+    if (!user) {
+      return c.json(
+        {
+          success: false,
+          message: '用户不存在',
+        },
+        404
+      );
+    }
+
+    // 删除用户
+    await c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id).run();
+
+    return c.json({
+      success: true,
+      message: '用户删除成功',
+    });
+  } catch (error) {
+    console.error('Database error:', error);
     return c.json(
       {
         success: false,
-        message: '用户不存在',
+        message: '删除用户失败',
       },
-      404
+      500
     );
   }
-
-  users.splice(userIndex, 1);
-
-  return c.json({
-    success: true,
-    message: '用户删除成功',
-  });
 });
 
 // 路径参数示例 - GET /api/hello/:name
@@ -184,23 +280,35 @@ api.get('/hello/:name', (c) => {
 });
 
 // 查询参数示例 - GET /api/search?q=keyword&limit=10
-api.get('/search', (c) => {
-  const query = c.req.query('q') || '';
-  const limit = parseInt(c.req.query('limit') || '10');
+api.get('/search', async (c) => {
+  try {
+    const query = c.req.query('q') || '';
+    const limit = parseInt(c.req.query('limit') || '10');
 
-  const results = users.filter(
-    (u) =>
-      u.name.includes(query) || u.email.includes(query)
-  );
+    const { results } = await c.env.DB.prepare(
+      'SELECT id, name, email, created_at, updated_at FROM users WHERE name LIKE ? OR email LIKE ? ORDER BY id LIMIT ?'
+    )
+      .bind(`%${query}%`, `%${query}%`, limit)
+      .all();
 
-  return c.json({
-    success: true,
-    data: {
-      query,
-      results: results.slice(0, limit),
-      total: results.length,
-    },
-  });
+    return c.json({
+      success: true,
+      data: {
+        query,
+        results: results,
+        total: results.length,
+      },
+    });
+  } catch (error) {
+    console.error('Database error:', error);
+    return c.json(
+      {
+        success: false,
+        message: '搜索失败',
+      },
+      500
+    );
+  }
 });
 
 // 错误处理示例 - GET /api/error

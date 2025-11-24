@@ -9,3 +9,9 @@ enabled = true
 [assets]
 directory = "react-client/dist"
 binding = "ASSETS"
+
+# D1 数据库配置
+[[d1_databases]]
+binding = "DB"
+database_name = "hono-demo-db"
+database_id = "36ce89cc-027e-4705-9643-de8e8c914021"

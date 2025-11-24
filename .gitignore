@@ -29,3 +29,9 @@ yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Cloudflare Workers
+.wrangler/
+
+# Claude Code
+.claude/
