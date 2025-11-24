@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
+import type { User } from '@hono-demo/shared';
 
 // 定义环境变量类型
 type Bindings = {
@@ -15,15 +16,6 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use('*', logger()); // 日志中间件
 app.use('/api/*', prettyJSON()); // 美化 JSON 输出（仅 API 路由）
 app.use('*', cors()); // CORS 跨域支持
-
-// 用户接口
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  created_at?: string;
-  updated_at?: string;
-}
 
 // API 路由组
 const api = new Hono<{ Bindings: Bindings }>();

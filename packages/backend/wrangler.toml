@@ -7,7 +7,7 @@ enabled = true
 
 # 静态资产配置
 [assets]
-directory = "react-client/dist"
+directory = "../frontend/dist"
 binding = "ASSETS"
 
 # D1 数据库配置

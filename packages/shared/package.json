@@ -1,0 +1,12 @@
+{
+  "name": "@hono-demo/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for Hono Demo",
+  "type": "module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

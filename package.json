@@ -1,29 +1,25 @@
 {
-  "name": "hono_demo",
+  "name": "hono-demo-monorepo",
   "version": "1.0.0",
-  "description": "Hono Framework Demo",
+  "description": "Hono Framework Demo - Monorepo",
+  "private": true,
   "type": "module",
-  "main": "dist/index.js",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npm run dev -w @hono-demo/backend",
+    "dev:frontend": "npm run dev -w @hono-demo/frontend",
+    "build": "npm run build -w @hono-demo/frontend && npm run build -w @hono-demo/backend",
+    "build:frontend": "npm run build -w @hono-demo/frontend",
+    "build:backend": "npm run build -w @hono-demo/backend",
+    "deploy": "npm run build:frontend && npm run deploy -w @hono-demo/backend",
+    "clean": "rm -rf packages/*/node_modules packages/*/dist node_modules"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@hono/node-server": "^1.19.6",
-    "hono": "^4.10.6"
-  },
   "devDependencies": {
-    "@types/node": "^24.10.1",
-    "autoprefixer": "^10.4.22",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.17",
-    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }
