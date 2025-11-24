@@ -4,3 +4,8 @@ main = "src/index.ts"
 
 [observability]
 enabled = true
+
+# 静态资产配置
+[assets]
+directory = "react-client/dist"
+binding = "ASSETS"

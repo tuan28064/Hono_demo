@@ -7,7 +7,7 @@ const app = new Hono();
 
 // 中间件示例
 app.use('*', logger()); // 日志中间件
-app.use('*', prettyJSON()); // 美化 JSON 输出
+app.use('/api/*', prettyJSON()); // 美化 JSON 输出（仅 API 路由）
 app.use('*', cors()); // CORS 跨域支持
 
 // 模拟数据库
@@ -23,22 +23,25 @@ let users: User[] = [
   { id: 3, name: '王五', email: 'wangwu@example.com' },
 ];
 
-// 首页路由
-app.get('/', (c) => {
+// API 路由组
+const api = new Hono();
+
+// API 首页 - GET /api
+api.get('/', (c) => {
   return c.json({
     message: '欢迎使用 Hono 框架！',
     version: '1.0.0',
     endpoints: {
-      users: '/users',
-      user: '/users/:id',
-      hello: '/hello/:name',
-      search: '/search?q=keyword',
+      users: '/api/users',
+      user: '/api/users/:id',
+      hello: '/api/hello/:name',
+      search: '/api/search?q=keyword',
     },
   });
 });
 
-// 获取所有用户 - GET /users
-app.get('/users', (c) => {
+// 获取所有用户 - GET /api/users
+api.get('/users', (c) => {
   return c.json({
     success: true,
     data: users,
@@ -46,8 +49,8 @@ app.get('/users', (c) => {
   });
 });
 
-// 获取单个用户 - GET /users/:id
-app.get('/users/:id', (c) => {
+// 获取单个用户 - GET /api/users/:id
+api.get('/users/:id', (c) => {
   const id = parseInt(c.req.param('id'));
   const user = users.find((u) => u.id === id);
 
@@ -67,8 +70,8 @@ app.get('/users/:id', (c) => {
   });
 });
 
-// 创建用户 - POST /users
-app.post('/users', async (c) => {
+// 创建用户 - POST /api/users
+api.post('/users', async (c) => {
   try {
     const body = await c.req.json<Omit<User, 'id'>>();
 
@@ -109,8 +112,8 @@ app.post('/users', async (c) => {
   }
 });
 
-// 更新用户 - PUT /users/:id
-app.put('/users/:id', async (c) => {
+// 更新用户 - PUT /api/users/:id
+api.put('/users/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
   const userIndex = users.findIndex((u) => u.id === id);
 
@@ -148,8 +151,8 @@ app.put('/users/:id', async (c) => {
   }
 });
 
-// 删除用户 - DELETE /users/:id
-app.delete('/users/:id', (c) => {
+// 删除用户 - DELETE /api/users/:id
+api.delete('/users/:id', (c) => {
   const id = parseInt(c.req.param('id'));
   const userIndex = users.findIndex((u) => u.id === id);
 
@@ -171,8 +174,8 @@ app.delete('/users/:id', (c) => {
   });
 });
 
-// 路径参数示例 - GET /hello/:name
-app.get('/hello/:name', (c) => {
+// 路径参数示例 - GET /api/hello/:name
+api.get('/hello/:name', (c) => {
   const name = c.req.param('name');
   return c.json({
     message: `你好，${name}！`,
@@ -180,8 +183,8 @@ app.get('/hello/:name', (c) => {
   });
 });
 
-// 查询参数示例 - GET /search?q=keyword&limit=10
-app.get('/search', (c) => {
+// 查询参数示例 - GET /api/search?q=keyword&limit=10
+api.get('/search', (c) => {
   const query = c.req.query('q') || '';
   const limit = parseInt(c.req.query('limit') || '10');
 
@@ -200,9 +203,52 @@ app.get('/search', (c) => {
   });
 });
 
-// 错误处理示例
-app.get('/error', (c) => {
+// 错误处理示例 - GET /api/error
+api.get('/error', (c) => {
   throw new Error('这是一个测试错误');
+});
+
+// 挂载 API 路由到 /api 前缀
+app.route('/api', api);
+
+// 静态文件服务（用于 Cloudflare Workers）
+app.get('*', async (c) => {
+  // 获取 assets binding
+  const env = c.env as any;
+  if (!env?.ASSETS) {
+    return c.notFound();
+  }
+
+  try {
+    // 尝试获取静态资产
+    const url = new URL(c.req.url);
+    let assetPath = url.pathname;
+
+    // 对于根路径或没有文件扩展名的路径，返回 index.html（SPA 路由）
+    if (assetPath === '/' || !assetPath.includes('.')) {
+      assetPath = '/index.html';
+    }
+
+    // 从 assets 获取文件
+    const asset = await env.ASSETS.fetch(new URL(assetPath, url.origin));
+
+    if (asset.status === 404) {
+      // 如果文件不存在且不是 API 路由，返回 index.html（SPA 路由）
+      if (!url.pathname.startsWith('/api')) {
+        const indexAsset = await env.ASSETS.fetch(new URL('/index.html', url.origin));
+        return new Response(indexAsset.body, {
+          headers: indexAsset.headers,
+          status: 200,
+        });
+      }
+      return c.notFound();
+    }
+
+    return asset;
+  } catch (error) {
+    console.error('静态文件服务错误:', error);
+    return c.notFound();
+  }
 });
 
 // 全局错误处理
