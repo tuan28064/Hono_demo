@@ -2,7 +2,6 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
-import { serve } from '@hono/node-server';
 
 const app = new Hono();
 
@@ -230,10 +229,4 @@ app.notFound((c) => {
   );
 });
 
-const port = 3000;
-console.log(`🚀 服务器运行在 http://localhost:${port}`);
-
-serve({
-  fetch: app.fetch,
-  port,
-});
+export default app;
